@@ -1,0 +1,84 @@
+﻿USE PHAN_PHOI_NUOC_GIAI_KHAT
+
+--View
+--1. Tạo View V_NGK tổng hợp dữ liệu về từng NGK đã được bán. Cấu trúc View gồm các thuộc tính:
+		--MaNGK, TenNGK, Quycach, SoLuongBan,Tổng tiền= SoLuongBan*Đơn giá bán
+ GO
+CREATE OR ALTER VIEW V_NGK
+AS SELECT NGK.MaNGK, NGK.TenNGK, NGK.QuyCach, CT_HOADON.SLKHMua, CT_HOADON.SLKHMua*CT_HOADON.DGBan AS TONGTIEN
+FROM  NGK INNER JOIN CT_HOADON ON CT_HOADON.MaNGK = NGK.MaNGK 
+		INNER JOIN HOADON ON HOADON.SoHD = CT_HOADON.SoHD
+ GO
+
+SELECT * 
+ FROM V_NGK
+ 
+
+
+
+--2. Tạo View V_khachang tổng hợp dữ liệu về 10 khách hàng lớn. Danh sách gồm MaKH, TenKH, DTKH, Tổng tiền= SoLuongBan*Đơn giá bán
+GO
+CREATE OR ALTER VIEW V_khachang AS
+SELECT BANG1.MaKH, BANG1.TenKH, BANG1.DTKH, SUM(BANG1.TONGTIEN) AS TONGTIEN
+FROM (
+		SELECT  KH.MaKH, KH.TenKH, KH.DTKH, CT_HOADON.SLKHMua*CT_HOADON.DGBan AS TONGTIEN
+		FROM KH INNER JOIN HOADON ON HOADON.MaKH = KH.MaKH 
+			INNER JOIN CT_HOADON ON HOADON.SoHD = CT_HOADON.SoHD
+			) AS BANG1
+
+GROUP BY BANG1.MaKH, BANG1.TenKH, BANG1.DTKH
+		GO
+
+
+SELECT * 
+FROM V_khachang
+
+
+
+--3. Tạo view V_TRANO cho biết danh sách khách hàng đã thu hơn 2 lần nhưng chưa trả hết tiền. Danh sách gồm:
+-- MaKH, TenKH, DTKH, tổng tiền phải trả, tổng tiền đã trả, số lần thu tiền
+
+GO
+CREATE OR ALTER VIEW V_TRANO AS
+SELECT KH.MaKH, KH.TenKH, SUM(PHIEUTRANO.SoTienTra) AS SOTIENPHAITRA ,COUNT(*) AS SOLAN
+FROM KH INNER JOIN HOADON ON KH.MaKH= HOADON.MaKH
+		INNER JOIN PHIEUTRANO ON PHIEUTRANO.SoHD= HOADON.SoHD
+GROUP BY  KH.MaKH, KH.TenKH
+HAVING COUNT (*)>= ALL (
+
+		SELECT COUNT(*)
+		FROM KH INNER JOIN HOADON ON KH.MaKH= HOADON.MaKH
+			INNER JOIN PHIEUTRANO ON PHIEUTRANO.SoHD= HOADON.SoHD
+		GROUP BY KH.MaKH
+		)
+
+GO
+
+SELECT *
+FROM V_TRANO
+
+
+
+--4. Tạo view V_ngk_ton hiển thị thông tin nước giải khát chưa bán được
+GO
+CREATE OR ALTER VIEW V_ngk_ton AS
+SELECT NGK.MaNGK, NGK.TenNGK, NGK.QuyCach, NGK.MaLoaiNGK
+FROM NGK
+WHERE NGK.MaNGK NOT IN (	
+			SELECT NGK.MaNGK
+			FROM HOADON INNER JOIN CT_HOADON ON HOADON.SoHD = CT_HOADON.SoHD
+			INNER JOIN NGK ON NGK.MaNGK = CT_HOADON.MaNGK
+			)
+GO
+
+
+SELECT *
+FROM V_ngk_ton
+
+
+
+
+
+
+
+
